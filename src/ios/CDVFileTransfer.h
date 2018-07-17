@@ -75,6 +75,7 @@ extern NSString* const kOptionsKeyCookie;
 @property (nonatomic, copy) NSString* objectId;
 @property (nonatomic, copy) NSString* source;
 @property (nonatomic, copy) NSString* target;
+@property (nonatomic, copy) NSString* type;
 @property (nonatomic, copy) NSURL* targetURL;
 @property (nonatomic, copy) NSString* mimeType;
 @property (assign) int responseCode; // atomic

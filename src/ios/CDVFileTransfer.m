@@ -26,6 +26,13 @@
 #import <AssetsLibrary/ALAssetsLibrary.h>
 #import <CFNetwork/CFNetwork.h>
 
+#import<AVFoundation/AVCaptureDevice.h>
+
+#import <AVFoundation/AVMediaFormat.h>
+
+#import<AssetsLibrary/AssetsLibrary.h>
+
+#import<CoreLocation/CoreLocation.h>
 #ifndef DLog
 #ifdef DEBUG
     #define DLog(fmt, ...) NSLog((@"%s [Line %d] " fmt), __PRETTY_FUNCTION__, __LINE__, ##__VA_ARGS__)
@@ -418,14 +425,52 @@ static CFIndex WriteDataToStream(NSData* data, CFWriteStreamRef stream)
     }
 }
 
+- (void)imageSavedToPhotosAlbum:(UIImage *)image didFinishSavingWithError:(NSError *)error contextInfo:(void *)contextInfo {
+    
+    NSString *msg = nil ;
+    if(error != nil){
+        msg = @"保存图片失败";
+    }
+    else{
+        msg = @"保存图片成功";
+    }
+}
+
+- (void)video:(NSString *)videoPath didFinishSavingWithError:(NSError *)error contextInfo:(void *)contextInf{
+    NSString *msg = nil ;
+    if(error != nil){
+        msg = @"保存视频失败";
+    }
+    else{
+        msg = @"保存视频成功";
+    }
+}
 - (void)download:(CDVInvokedUrlCommand*)command
 {
+    //相册权限
+    
+    ALAuthorizationStatus author = [ALAssetsLibrary authorizationStatus];
+    
+    if (author == kCLAuthorizationStatusRestricted || author == kCLAuthorizationStatusDenied){
+        
+        //无权限 引导去开启
+        
+        NSURL *url = [NSURL URLWithString:UIApplicationOpenSettingsURLString];
+        
+        if ([[UIApplication sharedApplication] canOpenURL:url]) {
+            
+            [[UIApplication sharedApplication] openURL:url];
+            
+        }
+        
+    }
     DLog(@"File Transfer downloading file...");
     NSString* source = [command argumentAtIndex:0];
     NSString* target = [command argumentAtIndex:1];
     BOOL trustAllHosts = [[command argumentAtIndex:2 withDefault:[NSNumber numberWithBool:NO]] boolValue]; // allow self-signed certs
     NSString* objectId = [command argumentAtIndex:3];
-    NSDictionary* headers = [command argumentAtIndex:4 withDefault:nil];
+    NSString* type = [command argumentAtIndex:4];
+    NSDictionary* headers = nil;
 
     CDVPluginResult* result = nil;
     CDVFileTransferError errorCode = 0;
@@ -464,7 +509,15 @@ static CFIndex WriteDataToStream(NSData* data, CFWriteStreamRef stream)
            NSLog(@"File Transfer Error: Invalid file path or URL %@", target);
         }
     }
-
+//    target = [target stringByReplacingOccurrencesOfString:@"file:///" withString:@"/"];
+//    target = [target hasPrefix:@"/"] ? [target copy] : [(NSURL *)[NSURL URLWithString:target] path];
+//    UIImage *appleImage = [[UIImage alloc] initWithContentsOfFile:target];
+//
+//    UIImageWriteToSavedPhotosAlbum(appleImage, self, @selector(imageSavedToPhotosAlbum:didFinishSavingWithError:contextInfo:), nil);
+//
+//    //保存相册核心代码
+//    UISaveVideoAtPathToSavedPhotosAlbum(target, self, @selector(video:didFinishSavingWithError:contextInfo:), nil);
+    
     if (errorCode > 0) {
         result = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsDictionary:[self createFileTransferError:errorCode AndSource:source AndTarget:target]];
         [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
@@ -480,6 +533,7 @@ static CFIndex WriteDataToStream(NSData* data, CFWriteStreamRef stream)
     delegate.callbackId = command.callbackId;
     delegate.objectId = objectId;
     delegate.source = source;
+    delegate.type = type;
     delegate.target = [targetURL absoluteString];
     delegate.targetURL = targetURL;
     delegate.trustAllHosts = trustAllHosts;
@@ -599,7 +653,7 @@ static CFIndex WriteDataToStream(NSData* data, CFWriteStreamRef stream)
 
 @implementation CDVFileTransferDelegate
 
-@synthesize callbackId, connection = _connection, source, target, responseData, responseHeaders, command, bytesTransfered, bytesExpected, direction, responseCode, objectId, targetFileHandle, filePlugin;
+@synthesize callbackId, connection = _connection, source, target, responseData, responseHeaders, command, bytesTransfered, bytesExpected, direction, responseCode, objectId, targetFileHandle, filePlugin, type;
 
 - (void)connectionDidFinishLoading:(NSURLConnection*)connection
 {
@@ -649,6 +703,18 @@ static CFIndex WriteDataToStream(NSData* data, CFWriteStreamRef stream)
         }
     }
 
+    //    target = [target stringByReplacingOccurrencesOfString:@"file:///" withString:@"/"];
+    NSString *targetURL = [self.target hasPrefix:@"/"] ? [self.target copy] : [(NSURL *)[NSURL URLWithString:self.target] path];
+    UIImage *appleImage = [[UIImage alloc] initWithContentsOfFile:targetURL];
+    
+    if ([self.type isEqualToString:@"image"]) {
+        UIImageWriteToSavedPhotosAlbum(appleImage, self, @selector(imageSavedToPhotosAlbum:didFinishSavingWithError:contextInfo:), nil);
+    }
+    if ([self.type isEqualToString:@"video"]) {
+        //保存相册核心代码
+        UISaveVideoAtPathToSavedPhotosAlbum(targetURL, self, @selector(video:didFinishSavingWithError:contextInfo:), nil);
+    }
+    
     [self.command.commandDelegate sendPluginResult:result callbackId:callbackId];
 
     // remove connection for activeTransfers
@@ -657,6 +723,27 @@ static CFIndex WriteDataToStream(NSData* data, CFWriteStreamRef stream)
         // remove background id task in case our upload was done in the background
         [[UIApplication sharedApplication] endBackgroundTask:self.backgroundTaskID];
         self.backgroundTaskID = UIBackgroundTaskInvalid;
+    }
+}
+
+- (void)imageSavedToPhotosAlbum:(UIImage *)image didFinishSavingWithError:(NSError *)error contextInfo:(void *)contextInfo {
+    
+    NSString *msg = nil ;
+    if(error != nil){
+        msg = @"保存图片失败";
+    }
+    else{
+        msg = @"保存图片成功";
+    }
+}
+
+- (void)video:(NSString *)videoPath didFinishSavingWithError:(NSError *)error contextInfo:(void *)contextInf{
+    NSString *msg = nil ;
+    if(error != nil){
+        msg = @"保存视频失败";
+    }
+    else{
+        msg = @"保存视频成功";
     }
 }
 
@@ -816,6 +903,15 @@ static CFIndex WriteDataToStream(NSData* data, CFWriteStreamRef stream)
         [downloadProgress setObject:[NSNumber numberWithLongLong:self.bytesExpected] forKey:@"total"];
         CDVPluginResult* result = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:downloadProgress];
         [result setKeepCallbackAsBool:true];
+
+        
+        float uploadedSizeMB = self.bytesTransfered/1024.0/1024.0;
+        float fileSizeMB = self.bytesExpected/1024.0/1024.0;
+        float abc = uploadedSizeMB/fileSizeMB *100;
+        NSLog(@"%@",[NSString stringWithFormat:@"%.1f%@", abc,@"%"]);
+        
+        
+        
         [self.command.commandDelegate sendPluginResult:result callbackId:callbackId];
     }
 }
