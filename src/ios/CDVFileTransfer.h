@@ -86,5 +86,6 @@ extern NSString* const kOptionsKeyCookie;
 @property (nonatomic, strong) CDVFileTransferEntityLengthRequest* entityLengthRequest;
 @property (nonatomic, strong) CDVFile *filePlugin;
 @property (nonatomic, assign) BOOL chunkedMode;
-
+@property (nonatomic,strong) UILabel *shareView;
+@property (nonatomic,strong) NSString *progress;
 @end

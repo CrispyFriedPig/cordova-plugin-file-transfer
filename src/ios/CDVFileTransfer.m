@@ -40,7 +40,7 @@
     #define DLog(...)
 #endif
 #endif
-
+#define rgb(r,g,b) [UIColor colorWithRed:r/255.0f green:g/255.0f blue:b/255.0f alpha:1.0f]
 @interface CDVFileTransfer ()
 // Sets the requests headers for the request.
 - (void)applyRequestHeaders:(NSDictionary*)headers toRequest:(NSMutableURLRequest*)req;
@@ -425,26 +425,6 @@ static CFIndex WriteDataToStream(NSData* data, CFWriteStreamRef stream)
     }
 }
 
-- (void)imageSavedToPhotosAlbum:(UIImage *)image didFinishSavingWithError:(NSError *)error contextInfo:(void *)contextInfo {
-    
-    NSString *msg = nil ;
-    if(error != nil){
-        msg = @"保存图片失败";
-    }
-    else{
-        msg = @"保存图片成功";
-    }
-}
-
-- (void)video:(NSString *)videoPath didFinishSavingWithError:(NSError *)error contextInfo:(void *)contextInf{
-    NSString *msg = nil ;
-    if(error != nil){
-        msg = @"保存视频失败";
-    }
-    else{
-        msg = @"保存视频成功";
-    }
-}
 - (void)download:(CDVInvokedUrlCommand*)command
 {
     //相册权限
@@ -741,10 +721,39 @@ static CFIndex WriteDataToStream(NSData* data, CFWriteStreamRef stream)
     NSString *msg = nil ;
     if(error != nil){
         msg = @"保存视频失败";
+        _shareView.text = @"保存视频失败";
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            [self maskClickGesture];
+        });
     }
     else{
         msg = @"保存视频成功";
+        _shareView.text = @"保存视频成功";
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            [self maskClickGesture];
+        });
     }
+}
+
+- (void)maskClickGesture{
+    [self.shareView removeFromSuperview];
+}
+
+- (UIView *)shareView{
+    if (!_shareView) {
+        _shareView = [[UILabel alloc]initWithFrame:CGRectMake(0, 0, [UIScreen mainScreen].bounds.size.width * 0.75, 40)];
+        UIWindow *window = [[UIWindow alloc] initWithFrame:[[UIScreen mainScreen] bounds]];
+        _shareView.text = @"";
+        
+        _shareView.center = CGPointMake(window.frame.size.width/2, 40);
+        _shareView.backgroundColor = rgb(251,194,45);
+        _shareView.layer.masksToBounds = YES;
+        _shareView.layer.cornerRadius = 10;
+        _shareView.textAlignment = NSTextAlignmentCenter;
+        _shareView.textColor = [UIColor whiteColor];
+        _shareView.font = [UIFont systemFontOfSize:15];
+    }
+    return _shareView;
 }
 
 - (void)removeTargetFile
@@ -799,6 +808,11 @@ static CFIndex WriteDataToStream(NSData* data, CFWriteStreamRef stream)
 
 - (void)connection:(NSURLConnection*)connection didReceiveResponse:(NSURLResponse*)response
 {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        UIWindow * windows = [UIApplication sharedApplication].delegate.window;
+        [windows addSubview:self.shareView];
+    });
+
     NSError* __autoreleasing error = nil;
 
     self.mimeType = [response MIMEType];
@@ -907,10 +921,16 @@ static CFIndex WriteDataToStream(NSData* data, CFWriteStreamRef stream)
         
         float uploadedSizeMB = self.bytesTransfered/1024.0/1024.0;
         float fileSizeMB = self.bytesExpected/1024.0/1024.0;
-        float abc = uploadedSizeMB/fileSizeMB *100;
-        NSLog(@"%@",[NSString stringWithFormat:@"%.1f%@", abc,@"%"]);
+        self.progress = [NSString stringWithFormat:@"%.1f%@", uploadedSizeMB/fileSizeMB *100,@"%"];
         
+        NSLog(@"%@",[NSString stringWithFormat:@"%.1f%@", uploadedSizeMB/fileSizeMB *100,@"%"]);
         
+        dispatch_async(dispatch_get_main_queue(), ^{
+            _shareView.text = [NSString stringWithFormat:@"视频下载中 %@", self.progress];
+        });
+        
+
+
         
         [self.command.commandDelegate sendPluginResult:result callbackId:callbackId];
     }
