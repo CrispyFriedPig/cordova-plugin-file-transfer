@@ -808,10 +808,12 @@ static CFIndex WriteDataToStream(NSData* data, CFWriteStreamRef stream)
 
 - (void)connection:(NSURLConnection*)connection didReceiveResponse:(NSURLResponse*)response
 {
-    dispatch_async(dispatch_get_main_queue(), ^{
-        UIWindow * windows = [UIApplication sharedApplication].delegate.window;
-        [windows addSubview:self.shareView];
-    });
+    if ([self.type isEqualToString:@"video"]) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            UIWindow * windows = [UIApplication sharedApplication].delegate.window;
+            [windows addSubview:self.shareView];
+        });
+    }
 
     NSError* __autoreleasing error = nil;
 
